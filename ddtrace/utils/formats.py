@@ -1,5 +1,6 @@
 import os
 
+from ddtrace.vendor import six
 from .deprecation import deprecation
 
 
@@ -89,3 +90,29 @@ def flatten_dict(d, sep=".", prefix=""):
         if isinstance(d, dict)
         else {prefix: d}
     )
+
+
+def parse_env_tags(envstr):
+    """Parse a string of tags typically provided via environment variables.
+
+    Returns a tuple of the tags parsed as well as those unsuccessfully parsed.
+
+    The expected string is of the form::
+        "key1:value1,key2:value2"
+    """
+    parsed_tags = {}
+    if not envstr:
+        return parsed_tags
+
+    erroneous_tags = []
+    for tag in envstr.split(","):
+        try:
+            key, value = tag.split(":", 1)
+        except ValueError:
+            erroneous_tags.append(tag)
+        else:
+            if isinstance(value, six.text_type):
+                value = six.ensure_binary(value, encoding="utf-8")
+            parsed_tags[key] = value
+
+    return parsed_tags, erroneous_tags

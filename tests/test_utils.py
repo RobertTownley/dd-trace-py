@@ -3,7 +3,7 @@ import unittest
 import warnings
 
 from ddtrace.utils.deprecation import deprecation, deprecated, format_message
-from ddtrace.utils.formats import asbool, get_env, flatten_dict
+from ddtrace.utils.formats import asbool, get_env, flatten_dict, parse_env_tags
 
 
 class TestUtils(unittest.TestCase):
@@ -101,3 +101,24 @@ class TestUtils(unittest.TestCase):
         d = dict(A=1, B=2, C=dict(A=3, B=4, C=dict(A=5, B=6)))
         e = dict(A=1, B=2, C_A=3, C_B=4, C_C_A=5, C_C_B=6)
         self.assertEquals(flatten_dict(d, sep='_'), e)
+
+    def test_parse_env_tags(self):
+        tags, err_tags = parse_env_tags("key:val")
+        assert tags == dict(key=b"val")
+        assert err_tags == []
+
+        tags, err_tags = parse_env_tags("key:val,key2:val2")
+        assert tags == dict(key=b"val", key2=b"val2")
+        assert err_tags == []
+
+        tags, err_tags = parse_env_tags("key:val,key2:val2,key3:1234.23")
+        assert tags == dict(key=b"val", key2=b"val2", key3=b"1234.23")
+        assert err_tags == []
+
+        parsed_tags, err_tags = parse_env_tags("key,key2:val1")
+        assert parsed_tags == dict(key2=b"val1")
+        assert err_tags == ["key"]
+
+        parsed_tags, err_tags = parse_env_tags("key:,key3:val1,")
+        assert parsed_tags == dict(key=b"",key3=b"val1")
+        assert err_tags == [""]

@@ -6,6 +6,7 @@ import os
 import platform
 import uuid
 
+from ddtrace.utils.formats import parse_env_tags
 from ddtrace.vendor import six
 from ddtrace.vendor.six.moves import http_client
 from ddtrace.vendor.six.moves.urllib import parse as urlparse
@@ -110,15 +111,10 @@ class PprofHTTPExporter(pprof.PprofExporter):
         }
         user_tags = os.getenv("DD_PROFILING_TAGS")
         if user_tags:
-            for tag in user_tags.split(","):
-                try:
-                    key, value = tag.split(":", 1)
-                except ValueError:
-                    LOG.error("Malformed tag in DD_PROFILING_TAGS: %s", tag)
-                else:
-                    if isinstance(value, six.text_type):
-                        value = value.encode("utf-8")
-                    tags[key] = value
+            parsed_tags, err_tags = parse_env_tags(user_tags)
+            if err_tags:
+                LOG.error("Malformed tags in DD_PROFILING_TAGS: %s", ",".join(err_tags))
+            tags.update(parsed_tags)
         return tags
 
     def export(self, events, start_time_ns, end_time_ns):
